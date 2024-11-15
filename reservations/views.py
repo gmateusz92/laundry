@@ -1,20 +1,23 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from .models import Reservation, WashingMachine
-from .forms import ReservationForm
 from datetime import datetime, timedelta
-from django.shortcuts import redirect, get_object_or_404
+
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .forms import ReservationForm
+from .models import Reservation, WashingMachine
+
 
 def calendar_view(request):
     today = datetime.today().date()
     days = [today + timedelta(days=i) for i in range(14)]  # pokazuje tydzień
-    return render(request, 'calendar.html', {'days': days})
+    return render(request, "calendar.html", {"days": days})
+
 
 @login_required
 def day_view(request, date):
     # Pobierz wszystkie pralki
     date = datetime.strptime(date, "%Y-%m-%d").date()
-    
+
     washing_machines = WashingMachine.objects.all()
 
     # Słownik przechowujący godziny rezerwacji dla każdej pralki
@@ -29,9 +32,9 @@ def day_view(request, date):
         for reservation in reservations:
             hour = reservation.start_time.strftime("%H:%M")
             reserved_hours[hour] = {
-                'username': reservation.user.username,
-                'full_name': reservation.user.get_full_name(),
-                'id': reservation.id
+                "username": reservation.user.username,
+                "full_name": reservation.user.get_full_name(),
+                "id": reservation.id,
             }
 
         reserved_hours_by_machine[machine] = reserved_hours
@@ -41,13 +44,16 @@ def day_view(request, date):
 
     print("Hours:", hours)
 
-    return render(request, 'day.html', {
-        'date': date,
-        'hours': hours,
-        'reserved_hours_by_machine': reserved_hours_by_machine,
-        'washing_machines': washing_machines,
-    })
-
+    return render(
+        request,
+        "day.html",
+        {
+            "date": date,
+            "hours": hours,
+            "reserved_hours_by_machine": reserved_hours_by_machine,
+            "washing_machines": washing_machines,
+        },
+    )
 
 
 @login_required
@@ -56,7 +62,7 @@ def reserve_view(request, date, hour, washing_machine_id):
     end_time = (datetime.strptime(hour, "%H:%M") + timedelta(hours=1)).time()
     washing_machine = WashingMachine.objects.get(id=washing_machine_id)
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = ReservationForm(request.POST)
         if form.is_valid():
             reservation = form.save(commit=False)
@@ -66,11 +72,15 @@ def reserve_view(request, date, hour, washing_machine_id):
             reservation.end_time = end_time
             reservation.washing_machine = washing_machine
             reservation.save()
-            return redirect('calendar')
+            return redirect("calendar")
     else:
-        form = ReservationForm(initial={'date': date, 'start_time': start_time, 'end_time': end_time})
+        form = ReservationForm(
+            initial={"date": date, "start_time": start_time, "end_time": end_time}
+        )
 
-    return render(request, 'reserve.html', {'form': form, 'washing_machine': washing_machine})
+    return render(
+        request, "reserve.html", {"form": form, "washing_machine": washing_machine}
+    )
 
 
 @login_required
@@ -82,4 +92,4 @@ def delete_reservation(request, reservation_id):
         reservation.delete()
 
     # Przekierowanie po usunięciu
-    return redirect('day_view', date=reservation.date)
+    return redirect("day_view", date=reservation.date)
